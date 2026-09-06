@@ -1,7 +1,5 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
-name: Node.js CI
+# Builds and tests the React frontend and the Flask backend.
+name: CI
 
 on:
   push:
@@ -10,14 +8,16 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  frontend:
+    name: Frontend (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
 
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
     - uses: actions/checkout@v4
@@ -25,7 +25,35 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
+        cache: 'yarn'
+        cache-dependency-path: frontend/yarn.lock
+    - run: yarn install --frozen-lockfile
+    - run: yarn build
+      env:
+        CI: true
+    - run: yarn test --watchAll=false
+      env:
+        CI: true
+
+  backend:
+    name: Backend (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: backend/requirements.txt
+    - run: pip install -r requirements.txt flake8
+    - run: flake8 .
+    - run: pytest -q

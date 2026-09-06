@@ -1,7 +1,7 @@
 version: '3'
 services:
   frontend:
-    build: 
+    build:
       context: .
       dockerfile: frontend.Dockerfile
     container_name: donation-web-frontend
@@ -9,28 +9,21 @@ services:
       - 21000:80
     depends_on:
       - backend
+    restart: unless-stopped
   backend:
     build:
       context: .
       dockerfile: backend.Dockerfile
     container_name: donation-web-backend
     environment:
-      - FLASK_DEBUG=1
-      - APP_SETTINGS=project.server.config.DevelopmentConfig
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - ADMIN_ACCOUNT=${ADMIN_ACCOUNT}
     working_dir: /root/backend
     command: gunicorn -c config.py wsgi:app
-    # command: bash
-    # stdin_open: true
-    # tty: true
-    volumes:
-      - /home/kaminyou:/home/kaminyou
     depends_on:
       - db
+    restart: unless-stopped
   db:
     image: mysql:8
     container_name: donation-web-db
@@ -41,3 +34,8 @@ services:
       - 23000:3306
     volumes:
       - ./backend/sql:/docker-entrypoint-initdb.d
+      - db-data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  db-data:

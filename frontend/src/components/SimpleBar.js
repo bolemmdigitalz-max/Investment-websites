@@ -1,63 +1,24 @@
-import React, { PureComponent } from 'react';
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// const data = [
-//   {
-//     name: 'Page A',
-//     uv: 4000,
-//     pv: 2400,
-//     amt: 2400,
-//   },
-//   {
-//     name: 'Page B',
-//     uv: 3000,
-//     pv: 1398,
-//     amt: 2210,
-//   },
-//   {
-//     name: 'Page C',
-//     uv: 2000,
-//     pv: 9800,
-//     amt: 2290,
-//   },
-//   {
-//     name: 'Page D',
-//     uv: 2780,
-//     pv: 3908,
-//     amt: 2000,
-//   },
-//   {
-//     name: 'Page E',
-//     uv: 1890,
-//     pv: 4800,
-//     amt: 2181,
-//   },
-//   {
-//     name: 'Page F',
-//     uv: 2390,
-//     pv: 3800,
-//     amt: 2500,
-//   },
-//   {
-//     name: 'Page G',
-//     uv: 3490,
-//     pv: 4300,
-//     amt: 2100,
-//   },
-// ];
+const formatDollars = (value) => Number(value).toLocaleString("en-US");
 
-export default class InvestmentBar extends PureComponent {
-  static demoUrl = 'https://codesandbox.io/s/simple-bar-chart-tpz8r';
-  
+// Compact tick labels (e.g. 13.5M) keep the y-axis readable on small screens.
+const formatCompact = (value) => {
+  const n = Number(value);
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + "M";
+  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(0) + "K";
+  return String(n);
+};
 
-  render() {
-    const { data } = this.props;
-    console.log(data)
-    return (
+export default function InvestmentBar({ data }) {
+  const chartData = Array.isArray(data) ? data : [];
+
+  return (
+    <div className="chart-wrapper" style={{ width: '100%', height: 500 }}>
+      <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          width={1000}
-          height={500}
-          data={data}
+          data={chartData}
           margin={{
             top: 5,
             right: 30,
@@ -66,12 +27,13 @@ export default class InvestmentBar extends PureComponent {
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" textAnchor= "end" sclaeToFit="true" verticalAnchor= "start"  interval={0} angle= "0" stroke="#8884d8"/>
-          <YAxis />
-          <Tooltip />
+          <XAxis dataKey="name" interval={0} stroke="#8884d8" tick={{ fontSize: 12 }} label={{ value: 'Group', position: 'insideBottomRight', offset: -5 }} />
+          <YAxis tickFormatter={formatCompact} width={55} />
+          <Tooltip formatter={(value) => [formatDollars(value), 'dollars']} labelFormatter={(label) => `Group ${label}`} />
           <Legend />
-          <Bar dataKey="dollars" fill="#8884d8" />
+          <Bar dataKey="dollars" fill="#8884d8" isAnimationActive={false} />
         </BarChart>
-    );
-  }
+      </ResponsiveContainer>
+    </div>
+  );
 }

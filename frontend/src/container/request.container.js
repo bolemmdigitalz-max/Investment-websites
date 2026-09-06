@@ -1,398 +1,168 @@
-import React, { useState, useEffect } from "react";
-import { useHistory } from "react-router";
+import React, { useState, useEffect, useCallback } from "react";
+import { useHistory } from "react-router-dom";
 import axios from "axios";
 import swal from "sweetalert";
 import NoAuth from '../components/noAuth'
 import config from "../config.json";
+import GROUPS, { emptyAmounts, sumAmounts, toInt } from "../groups";
 
+const formatDollars = (n) => n.toLocaleString("en-US");
 
 function RequestPage({ token }) {
   const history = useHistory();
 
-  const [groupOne, setGroupOne] = useState(0);
-  const [groupTwo, setGroupTwo] = useState(0);
-  const [groupThree, setGroupThree] = useState(0);
-  const [groupFour, setGroupFour] = useState(0);
-  const [groupFive, setGroupFive] = useState(0);
-  const [groupSix, setGroupSix] = useState(0);
-  const [groupSeven, setGroupSeven] = useState(0);
-  const [groupNine, setGroupNine] = useState(0);
-  const [groupTen, setGroupTen] = useState(0);
-  const [groupEleven, setGroupEleven] = useState(0);
-  const [groupTwelve, setGroupTwelve] = useState(0);
-  const [groupThirteen, setGroupThirteen] = useState(0);  
-  const [leftDollar, setLeftDollar] = useState(config.MAX_INVEST);  
+  const [amounts, setAmounts] = useState(emptyAmounts);
+  const [ownGroup, setOwnGroup] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
+  const total = sumAmounts(amounts);
+  const leftDollar = config.MAX_INVEST - total;
 
-  const fetchDefault = async () => {
-    await axios.get("/api/personal/donation", {
-      headers: {Authorization: 'Bearer ' + token}
-    })
-    .then((res) => {
-      setGroupOne(parseInt(res.data.record['group_one']))
-      setGroupTwo(parseInt(res.data.record['group_two']))
-      setGroupThree(parseInt(res.data.record['group_three']))
-      setGroupFour(parseInt(res.data.record['group_four']))
-      setGroupFive(parseInt(res.data.record['group_five']))
-      setGroupSix(parseInt(res.data.record['group_six']))
-      setGroupSeven(parseInt(res.data.record['group_seven']))
-      setGroupNine(parseInt(res.data.record['group_nine']))
-      setGroupTen(parseInt(res.data.record['group_ten']))
-      setGroupEleven(parseInt(res.data.record['group_eleven']))
-      setGroupTwelve(parseInt(res.data.record['group_twelve']))
-      setGroupThirteen(parseInt(res.data.record['group_thirteen']))
-      var left = config.MAX_INVEST;
-      left -= parseInt(res.data.record['group_one']);
-      left -= parseInt(res.data.record['group_two'])
-      left -= parseInt(res.data.record['group_three'])
-      left -= parseInt(res.data.record['group_four'])
-      left -= parseInt(res.data.record['group_five'])
-      left -= parseInt(res.data.record['group_six'])
-      left -= parseInt(res.data.record['group_seven'])
-      left -= parseInt(res.data.record['group_nine'])
-      left -= parseInt(res.data.record['group_ten'])
-      left -= parseInt(res.data.record['group_eleven'])
-      left -= parseInt(res.data.record['group_twelve'])
-      left -= parseInt(res.data.record['group_thirteen'])
-      setLeftDollar(left);
-    })
-    .catch((error) => {
+  const fetchDefault = useCallback(async () => {
+    const headers = { Authorization: 'Bearer ' + token };
+    try {
+      const [donationRes, userRes] = await Promise.all([
+        axios.get("/api/personal/donation", { headers }),
+        axios.get("/api/personal/listuser", { headers }),
+      ]);
+      const record = donationRes.data.record || {};
+      setAmounts((prev) => {
+        const next = { ...prev };
+        GROUPS.forEach((g) => { next[g.key] = toInt(record[g.key]); });
+        return next;
+      });
+      const me = userRes.data.currentUsers && userRes.data.currentUsers[0];
+      setOwnGroup(me ? me.group : null);
+    } catch (error) {
       console.error(error);
-    });
-  }
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     fetchDefault();
-  }, [])
+  }, [token, fetchDefault]);
 
-  useEffect(() => {
-    updateLeftMoney()
-  }, [groupOne, groupTwo, groupThree, groupFour, groupFive, groupSix, groupSeven, groupNine, groupTen, groupEleven, groupTwelve, groupThirteen])
-
-  const sendRequest = () => {
-    const formData = new FormData();
-    
-    formData.append("group_one", groupOne);
-    formData.append("group_two", groupTwo)
-    formData.append("group_three", groupThree);
-    formData.append("group_four", groupFour)
-    formData.append("group_five", groupFive);
-    formData.append("group_six", groupSix);
-    formData.append("group_seven", groupSeven);
-    formData.append("group_nine", groupNine);
-    formData.append("group_ten", groupTen);
-    formData.append("group_eleven", groupEleven);
-    formData.append("group_twelve", groupTwelve);
-    formData.append("group_thirteen", groupThirteen);
-    
-    axios.post("/api/submit/donation", formData, {
-      headers: {Authorization: 'Bearer ' + token}
-    })
-    .then(res => {
-      //pass
-    })
-    .catch(
-      err => {
-        console.warn(err);
-        swal({
-          title: "Error",
-          text: "Server error",
-          icon: "error",
-        });
-      }
-    );
-  }
-
-  const getSum = () => {
-    var sum = 0;
-    sum += parseInt(groupOne);
-    //console.log("sum", sum)
-    sum += parseInt(groupTwo);
-    sum += parseInt(groupThree);
-    sum += parseInt(groupFour);
-    sum += parseInt(groupFive);
-    sum += parseInt(groupSix);
-    sum += parseInt(groupSeven);
-    sum += parseInt(groupNine);
-    sum += parseInt(groupTen);
-    sum += parseInt(groupEleven);
-    sum += parseInt(groupTwelve);
-    sum += parseInt(groupThirteen);
-    // console.log(sum)
-    // console.log(groupOne)
-    // console.log(groupTwo);
-    // console.log(groupThree);
-    // console.log(groupFour);
-    // console.log(groupFive);
-    // console.log(groupSix);
-    // console.log(groupSeven);
-    // console.log(groupNine);
-    // console.log(groupTen);
-    // console.log(groupEleven);
-    // console.log(groupTwelve);
-    // console.log(groupThirteen);
-    return sum;
-  }
-  const getLeftMoney = () => {
-    return config.MAX_INVEST - getSum();
-  }
-
-  const updateLeftMoney = () => {
-    var dollar = getLeftMoney();
-    setLeftDollar(dollar);
+  const handleChange = (key) => (e) => {
+    const value = e.target.value;
+    setAmounts((prev) => ({ ...prev, [key]: value === "" ? "" : value }));
   }
 
   const onSubmit = (e) => {
     e.preventDefault();
-    if (getSum() > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Total investment over " + config.MAX_INVEST,
-        icon: "error",
-      });
-      return
-    }
-    if (groupOne < 0 || groupOne > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
+
+    for (const g of GROUPS) {
+      const value = toInt(amounts[g.key]);
+      if (value < 0 || value > config.MAX_INVEST) {
+        swal({
+          title: "Error",
+          text: `Please provide a valid value for ${g.label} (0 - ${formatDollars(config.MAX_INVEST)})`,
+          icon: "error",
+        });
+        return;
+      }
     }
 
-    if (groupTwo < 0 || groupTwo > config.MAX_INVEST) {
+    if (total > config.MAX_INVEST) {
       swal({
         title: "Error",
-        text: "Please provide valid donation value",
+        text: "Total investment over " + formatDollars(config.MAX_INVEST),
         icon: "error",
       });
-      return
+      return;
     }
 
-    if (groupThree < 0 || groupThree > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
+    const formData = new FormData();
+    GROUPS.forEach((g) => formData.append(g.key, toInt(amounts[g.key])));
 
-    if (groupFour < 0 || groupFour > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-
-    if (groupFive < 0 || groupFive > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-    if (groupSix < 0 || groupSix > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-    if (groupSeven < 0 || groupSeven > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-
-    if (groupNine < 0 || groupNine > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-
-    if (groupTen < 0 || groupTen > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-
-    if (groupEleven < 0 || groupEleven > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-
-    if (groupTwelve < 0 || groupTwelve > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-    if (groupThirteen < 0 || groupThirteen > config.MAX_INVEST) {
-      swal({
-        title: "Error",
-        text: "Please provide valid donation value",
-        icon: "error",
-      });
-      return
-    }
-  
-    if (sendRequest()) {
-      history.push({
-        pathname: "/dashboard",
-      });
-    }
-    else {
-      swal({
-        title: "Success",
-        text: "Submit Success!",
-        icon: "success",
-      });
-    }
+    setSubmitting(true);
+    axios.post("/api/submit/donation", formData, {
+      headers: { Authorization: 'Bearer ' + token }
+    })
+      .then(() => {
+        swal({
+          title: "Success",
+          text: "Submit Success!",
+          icon: "success",
+        }).then(() => {
+          history.push({ pathname: "/dashboard" });
+        });
+      })
+      .catch((err) => {
+        console.warn(err);
+        const serverMsg = err.response && err.response.data && err.response.data.msg;
+        swal({
+          title: "Error",
+          text: serverMsg || "Server error",
+          icon: "error",
+        });
+      })
+      .finally(() => setSubmitting(false));
   }
 
-
-  const handleGroupOneChange = (e) => {
-    setGroupOne(e.target.value)
-  }
-
-  const handleGroupTwoChange = (e) => {
-    setGroupTwo(e.target.value)
-  }
-  const handleGroupThreeChange = (e) => {
-    setGroupThree(e.target.value)
-  }
-  
-  const handleGroupFourChange = (e) => {
-    setGroupFour(e.target.value)
-  }
-
-  const handleGroupFiveChange = (e) => {
-    setGroupFive(e.target.value)
-  }
-
-  const handleGroupSixChange = (e) => {
-    setGroupSix(e.target.value)
-  }
-
-  const handleGroupSevenChange = (e) => {
-    setGroupSeven(e.target.value)
-  }
-
-  const handleGroupNineChange = (e) => {
-    setGroupNine(e.target.value)
-  }
-
-  const handleGroupTenChange = (e) => {
-    setGroupTen(e.target.value)
-  }
-
-  const handleGroupElevenChange = (e) => {
-    setGroupEleven(e.target.value)
-  }
-
-  const handleGroupTwelveChange = (e) => {
-    setGroupTwelve(e.target.value)
-  }
-
-  const handleGroupThirteenChange = (e) => {
-    setGroupThirteen(e.target.value)
+  if (!token) {
+    return (
+      <div className="main-wrapper">
+        <div className="main-inner">
+          <NoAuth />
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="main-wrapper">
       <div className="main-inner">
-        {!token && token!=="" &&token!== undefined? (
-          <NoAuth />
-        ):(
-          <form>
-            <h3>Investment!</h3>
-            <h5>You are left with {leftDollar} dollars</h5>
-            
-            <h4>Group list</h4>
-            
-            <div className="form-group">
-              <label htmlFor="formWebURLInput">Group one</label>
-              <input type="number" className="form-control" id="formWebURLInput" placeholder="value" value={groupOne} onChange={handleGroupOneChange}/>
-            </div>
+        <form onSubmit={onSubmit}>
+          <h3>Investment!</h3>
+          <h5 className={leftDollar < 0 ? "text-danger" : ""}>
+            You are left with {formatDollars(leftDollar)} dollars
+          </h5>
+          {ownGroup !== null && (
+            <p className="text-muted">
+              You belong to group {ownGroup}; any amount entered for your own group is ignored.
+            </p>
+          )}
 
-            <div className="form-group">
-              <label htmlFor="formWebAccountInput">Group two</label>
-              <input type="number" className="form-control" id="formWebAccountInput" placeholder="value" value={groupTwo} onChange={handleGroupTwoChange}/>
-            </div>
+          <h4>Group list</h4>
 
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group three</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupThree} onChange={handleGroupThreeChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group four</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupFour} onChange={handleGroupFourChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group five</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupFive} onChange={handleGroupFiveChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group six</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupSix} onChange={handleGroupSixChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group seven</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupSeven} onChange={handleGroupSevenChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group nine</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupNine} onChange={handleGroupNineChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group ten</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupTen} onChange={handleGroupTenChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group eleven</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupEleven} onChange={handleGroupElevenChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group twelve</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupTwelve} onChange={handleGroupTwelveChange}/>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="formWebPasswordInput">Group thirteen</label>
-              <input type="number" className="form-control" id="formWebPasswordInput" placeholder="value" value={groupThirteen} onChange={handleGroupThirteenChange}/>
-            </div>
-            <button type="button" className="btn btn-primary btn-block pantoneZOZl" onClick={onSubmit}>Submit</button>
-          </form>
-        )}
+          {loading ? (
+            <p>Loading...</p>
+          ) : (
+            GROUPS.map((g) => (
+              <div className="form-group" key={g.key}>
+                <label htmlFor={`input-${g.key}`}>
+                  {g.label}{ownGroup === g.number ? " (your group)" : ""}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={config.MAX_INVEST}
+                  step="1"
+                  className="form-control"
+                  id={`input-${g.key}`}
+                  placeholder="value"
+                  value={amounts[g.key]}
+                  disabled={ownGroup === g.number}
+                  onChange={handleChange(g.key)}
+                />
+              </div>
+            ))
+          )}
+          <button
+            type="submit"
+            className="btn btn-primary btn-block pantoneZOZl"
+            disabled={loading || submitting || leftDollar < 0}
+          >
+            {submitting ? "Submitting..." : "Submit"}
+          </button>
+        </form>
       </div>
     </div>
   )

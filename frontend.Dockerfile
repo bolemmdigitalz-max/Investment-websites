@@ -1,13 +1,14 @@
-FROM nikolaik/python-nodejs:python3.10-nodejs16 AS builder
+FROM node:18-alpine AS builder
 WORKDIR /app
+COPY ./frontend/package.json ./frontend/yarn.lock ./
+RUN yarn install --frozen-lockfile --network-timeout 300000
 COPY ./frontend/ .
-RUN yarn install && yarn build
+RUN yarn build
 
 FROM nginx:alpine
 WORKDIR /usr/share/nginx/html
 RUN rm -rf ./*
 COPY --from=builder /app/build .
-COPY ./nginx/ .
-RUN rm /etc/nginx/conf.d/default.conf
-RUN cp nginx.conf /etc/nginx/conf.d/default.conf
+COPY ./nginx/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
 ENTRYPOINT ["nginx", "-g", "daemon off;"]

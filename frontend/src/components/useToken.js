@@ -1,72 +1,97 @@
-import { useState, useEffect } from 'react';
-import { useHistory } from "react-router";
+import { useState, useEffect, useCallback } from 'react';
 import axios from "axios";
 
+const TOKEN_KEY = 'token';
+
+/**
+ * Decode the payload of a JWT (the middle, base64url-encoded part).
+ * Returns null when the token is malformed.
+ */
+export function getPayload(jwt) {
+  try {
+    const base64 = jwt.split(".")[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * A token is considered expired when it is malformed or when its `exp`
+ * claim (in seconds since the epoch) lies in the past.
+ */
+export function isExpired(jwt) {
+  const payload = getPayload(jwt);
+  if (!payload || typeof payload.exp !== 'number') return true;
+  return payload.exp * 1000 <= Date.now();
+}
+
+function readStoredToken() {
+  const userToken = localStorage.getItem(TOKEN_KEY);
+  if (!userToken) return null;
+  if (isExpired(userToken)) {
+    localStorage.removeItem(TOKEN_KEY);
+    return null;
+  }
+  return userToken;
+}
+
 function useToken() {
-  const history = useHistory();
-  const validateToken = () => {
-    axios.post("/api/validate", null, {
-      headers: {Authorization: 'Bearer ' + token}
-    }).then((response) => {
-      history.push({
-        pathname: "/",
-      });
-    }).catch((error) => {
-      removeToken();
-      history.push({
-        pathname: "/",
-      });
-    })
-  }
+  const [token, setToken] = useState(readStoredToken);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  function getPayload(jwt) {
-    // A JWT has 3 parts separated by '.'
-    // The middle part is a base64 encoded JSON
-    // decode the base64 
-    return atob(jwt.split(".")[1])
-  }
-  
-  function isExpired(jwt) {
-    const payload = getPayload(jwt);
-    const expiration = new Date(payload.exp);
-    const now = new Date();
-    const halfHour = 1000 * 60 * 30;
-    if( expiration.getTime() - now.getTime() < halfHour ){
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  function getToken() {
-    const userToken = localStorage.getItem('token');
-    if (userToken === null) return null;
-    if (isExpired(userToken)) {
-      localStorage.removeItem("token");
-      return null;
-    }
-    return userToken && userToken
-  }
-
-  const [token, setToken] = useState(getToken());
-
-  function saveToken(userToken) {
-    localStorage.setItem('token', userToken);
+  const saveToken = useCallback((userToken) => {
+    localStorage.setItem(TOKEN_KEY, userToken);
     setToken(userToken);
-  };
-
-  function removeToken() {
-    localStorage.removeItem("token");
-    setToken(null);
-  }
-
-  useEffect(() => {
-    validateToken();
   }, []);
+
+  const removeToken = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+    setIsAdmin(false);
+  }, []);
+
+  // Validate the stored token against the server whenever it changes.
+  // The backend attaches a fresh `access_token` when the current one is
+  // about to expire, so we store that one instead.
+  useEffect(() => {
+    if (!token) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    const headers = { Authorization: 'Bearer ' + token };
+
+    axios.post("/api/validate", null, { headers })
+      .then((response) => {
+        if (cancelled) return;
+        const refreshed = response.data && response.data.access_token;
+        if (refreshed && refreshed !== token) saveToken(refreshed);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        // Only discard the token when the server explicitly rejects it;
+        // a network hiccup should not log the user out.
+        if (error.response && [401, 403, 422].includes(error.response.status)) {
+          removeToken();
+        }
+      });
+
+    axios.get("/api/admin/verify", { headers })
+      .then((response) => {
+        if (!cancelled) setIsAdmin(Boolean(response.data && response.data.isAdmin));
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [token, saveToken, removeToken]);
 
   return {
     setToken: saveToken,
     token,
+    isAdmin,
     removeToken
   }
 }

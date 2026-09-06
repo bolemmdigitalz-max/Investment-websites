@@ -1,48 +1,56 @@
-import React, { useState, useEffect } from "react";
-import { useHistory } from "react-router";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import NoAuth from '../components/noAuth'
 import InvestmentBar from '../components/SimpleBar'
+import config from "../config.json";
 
 function DashBoard({ token }) {
-  const history = useHistory();
-  const MINUTE_MS = 2000; // 2 sec
+  const [apiData, setApiData] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [apiData, setApiData] = useState(null);
-  
-  const getDashBoard = async () => {
-    await axios
-      .get("/api/dashboard/donation", {
-        headers: {Authorization: 'Bearer ' + token}
-      })
-      .then((res) => {
-        console.log(res)
-        setApiData(res.data.data);
-      })
-      .catch((error) => {
-        console.error(error);
+  const getDashBoard = useCallback(async () => {
+    try {
+      const res = await axios.get("/api/dashboard/donation", {
+        headers: { Authorization: 'Bearer ' + token }
       });
-  }
+      setApiData(res.data.data || []);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Could not load the dashboard");
+    } finally {
+      setLoaded(true);
+    }
+  }, [token]);
 
   useEffect(() => {
+    if (!token) return;
     getDashBoard();
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-        getDashBoard();
-      }, MINUTE_MS);
+    const interval = setInterval(getDashBoard, config.REFRESH_DURATION);
     return () => clearInterval(interval);
-  }, [])
+  }, [token, getDashBoard]);
+
+  const total = apiData.reduce((sum, item) => sum + (item.dollars || 0), 0);
 
   return (
     <div className="main-wrapper">
       <div className="main-inner">
-        {!token && token!=="" &&token!== undefined? (
+        {!token ? (
           <NoAuth />
-        ):(
+        ) : (
           <>
-            <InvestmentBar data={apiData}></InvestmentBar>
+            <h3>Dashboard</h3>
+            <p className="text-muted">
+              Total invested: <b>{total.toLocaleString("en-US")}</b> dollars
+              (refreshes every {Math.round(config.REFRESH_DURATION / 1000)} s)
+            </p>
+            {error && <p className="text-danger">{error}</p>}
+            {!loaded ? (
+              <p>Loading...</p>
+            ) : (
+              <InvestmentBar data={apiData} />
+            )}
           </>
         )}
       </div>

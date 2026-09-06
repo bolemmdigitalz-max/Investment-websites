@@ -31,7 +31,7 @@ class DonationModel(Base):
     group_six = Column(Integer, nullable=False)
     group_seven = Column(Integer, nullable=False)
     group_nine = Column(Integer, nullable=False)
-    group_ten= Column(Integer, nullable=False)
+    group_ten = Column(Integer, nullable=False)
     group_eleven = Column(Integer, nullable=False)
     group_twelve = Column(Integer, nullable=False)
     group_thirteen = Column(Integer, nullable=False)
