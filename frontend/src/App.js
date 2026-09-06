@@ -1,12 +1,11 @@
-//import logo from './logo.svg';
+import { useState } from 'react';
 import logo from './img/logo.png';
 import './App.css';
-import '../node_modules/bootstrap/dist/css/bootstrap.min.css';
-import '../node_modules/bootstrap-fileinput/css/fileinput.min.css'
-import '../node_modules/bootstrap-fileinput/css/fileinput-rtl.min.css'
-import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Switch, Route, Link } from "react-router-dom";
 
 import useToken from './components/useToken'
+import ScrollToTop from './components/ScrollToTop'
 import RequestPage from "./container/request.container"
 import Login from "./container/login.container";
 import MainPage from "./container/main.container"
@@ -16,39 +15,47 @@ import AdminPage from "./container/admin.container"
 import PersonalPage from "./container/personal.container"
 
 function App() {
-  const { token, removeToken, setToken } = useToken();
+  const { token, isAdmin, removeToken, setToken } = useToken();
+  const [navOpen, setNavOpen] = useState(false);
+  const closeNav = () => setNavOpen(false);
+
+  const NavItem = ({ to, children }) => (
+    <li className="nav-item">
+      <Link className="nav-link" to={to} onClick={closeNav}>{children}</Link>
+    </li>
+  );
 
   return (
-  <Router>
     <div className="App">
+      <ScrollToTop />
       <nav className="navbar navbar-expand-lg navbar-light fixed-top">
         <div className="container">
-          <img src={logo} width="30" height="30" alt=""/> 
-          <Link className="navbar-brand" to={"/"}>SPARK investment website</Link>
-          <div className="collapse navbar-collapse" id="navbarTogglerDemo02">
-            {!token && token!=="" &&token!== undefined ? (
+          <Link className="navbar-brand" to={"/"} onClick={closeNav}>
+            <img src={logo} width="30" height="30" alt=""/>
+            SPARK investment website
+          </Link>
+          <button
+            className="navbar-toggler"
+            type="button"
+            aria-controls="mainNav"
+            aria-expanded={navOpen}
+            aria-label="Toggle navigation"
+            onClick={() => setNavOpen((open) => !open)}
+          >
+            <span className="navbar-toggler-icon"></span>
+          </button>
+          <div className={"collapse navbar-collapse" + (navOpen ? " show" : "")} id="mainNav">
+            {!token ? (
               <ul className="navbar-nav ml-auto">
-                <li className="nav-item">
-                  <Link className="nav-link" to={"/sign-in"}>Login</Link>
-                </li>
+                <NavItem to="/sign-in">Login</NavItem>
               </ul>
             ):(
               <ul className="navbar-nav ml-auto">
-                <li className="nav-item">
-                  <Link className="nav-link" to={"/admin"}>Admin</Link>
-                </li>
-                <li className="nav-item">
-                  <Link className="nav-link" to={"/personal"}>Personal</Link>
-                </li>
-                <li className="nav-item">
-                  <Link className="nav-link" to={"/request"}>Request</Link>
-                </li>
-                <li className="nav-item">
-                  <Link className="nav-link" to={"/dashboard"}>Dashboard</Link>
-                </li>
-                <li className="nav-item">
-                  <Link className="nav-link" to={"/logout"}>Logout</Link>
-                </li>
+                {isAdmin && <NavItem to="/admin">Admin</NavItem>}
+                <NavItem to="/personal">Personal</NavItem>
+                <NavItem to="/request">Request</NavItem>
+                <NavItem to="/dashboard">Dashboard</NavItem>
+                <NavItem to="/logout">Logout</NavItem>
               </ul>
             )}
           </div>
@@ -69,7 +76,7 @@ function App() {
             <Login setToken={setToken} />
           </Route>
           <Route exact path='/logout'>
-            <LogOut token={removeToken} />
+            <LogOut removeToken={removeToken} />
           </Route>
           <Route exact path='/admin'>
             <AdminPage token={token} />
@@ -80,7 +87,6 @@ function App() {
         </Switch>
       </div>
     </div>
-  </Router>
   );
 }
 

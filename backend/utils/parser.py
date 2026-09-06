@@ -1,8 +1,15 @@
-def parse_personal_donation(request_instance):
+from constants import GROUP_COLUMNS
+
+
+def parse_personal_donation(donation_instance):
+    """
+    Turn a ``DonationModel`` into a ``{column: amount}`` dict.
+    ``None`` (user has not submitted yet) yields an all-zero record.
+    """
     response = {}
-    for k, v in request_instance.__dict__.items():
-        if 'group' in k:
-            response[k] = v
+    for column in GROUP_COLUMNS.values():
+        value = getattr(donation_instance, column, None) if donation_instance else None
+        response[column] = int(value) if value is not None else 0
     return response
 
 
@@ -22,6 +29,6 @@ def parse_user_instances(user_instances):
 
 def parse_user_instance(user_instance):
     response = {}
-    response['account'] = user_instance.__dict__['account']
-    response['group'] = user_instance.__dict__['category']
+    response['account'] = user_instance.account
+    response['group'] = user_instance.category
     return response

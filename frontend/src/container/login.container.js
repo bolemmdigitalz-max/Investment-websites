@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useHistory } from "react-router";
+import { useHistory } from "react-router-dom";
 import axios from "axios";
 import swal from "sweetalert";
 
@@ -7,6 +7,7 @@ function Login({ setToken }) {
   const history = useHistory();
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleAccountChange = (e) => {
     setAccount(e.target.value)
@@ -15,17 +16,26 @@ function Login({ setToken }) {
   const handlePasswordChange = (e) => {
     setPassword(e.target.value)
   }
+
   const logMeIn = (e) => {
-    axios(
-      {
-        method: "POST",
-        url:"/api/token",
-        data:{
-          account: account,
-          password: password,
-        }
+    e.preventDefault();
+    if (!account || !password) {
+      swal({
+        title: "Error",
+        text: "Please provide account and password",
+        icon: "error",
+      });
+      return;
+    }
+    setSubmitting(true);
+    axios({
+      method: "POST",
+      url: "/api/token",
+      data: {
+        account: account,
+        password: password,
       }
-    ).then((response) => {
+    }).then((response) => {
       setToken(response.data.access_token)
       setAccount("")
       setPassword("")
@@ -33,34 +43,33 @@ function Login({ setToken }) {
         pathname: "/",
       });
     }).catch((error) => {
-      if (error.response) {
-        swal({
-          title: "Error",
-          text: "Invalid User",
-          icon: "error",
-        });
-      }
+      setPassword("")
+      swal({
+        title: "Error",
+        text: error.response ? "Wrong account or password" : "Cannot reach the server",
+        icon: "error",
+      });
+    }).finally(() => {
+      setSubmitting(false);
     })
-    setAccount("")
-    setPassword("")
-    e.preventDefault()
   }
-
 
   return (
     <div className="auth-wrapper">
       <div className="auth-inner">
-        <form>
+        <form onSubmit={logMeIn}>
           <h3>Login</h3>
           <div className="form-group">
-            <label>Account</label>
-            <input type="email" className="form-control" name="email"  placeholder="Enter your account" onChange={handleAccountChange} value={account}/>
+            <label htmlFor="loginAccount">Account</label>
+            <input type="text" className="form-control" id="loginAccount" name="account" autoComplete="username" placeholder="Enter your account" onChange={handleAccountChange} value={account}/>
           </div>
           <div className="form-group">
-            <label>Password</label>
-            <input type="password" className="form-control" name="password" placeholder="Enter password" onChange={handlePasswordChange} value={password}/>
+            <label htmlFor="loginPassword">Password</label>
+            <input type="password" className="form-control" id="loginPassword" name="password" autoComplete="current-password" placeholder="Enter password" onChange={handlePasswordChange} value={password}/>
           </div>
-          <button type="button" className="btn btn-primary btn-block pantoneZOZl" onClick={logMeIn}>Submit</button>
+          <button type="submit" className="btn btn-primary btn-block pantoneZOZl" disabled={submitting}>
+            {submitting ? "Signing in..." : "Submit"}
+          </button>
         </form>
       </div>
     </div>

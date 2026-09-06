@@ -1,49 +1,46 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import UserList from '../components/userList'
+import NoAuth from '../components/noAuth'
 
-export default function PersonalPage( {token} ) {
+export default function PersonalPage({ token }) {
   const [userList, setUserList] = useState([]);
-  const [isFetch, setIsFetch] = useState(false);
-  const MINUTE_MS = 2000; // 2 sec
+  const [status, setStatus] = useState("loading"); // loading | ok | error
 
-
-  const getUserList = async () => {
-
-    await axios.get("/api/personal/listuser", {
-      headers: {Authorization: 'Bearer ' + token}
-    })
-    .then((res) => {
-      setUserList(res.data.currentUsers);
-      setIsFetch(true);
-    })
-    .catch((error) => {
+  const getUserList = useCallback(async () => {
+    try {
+      const res = await axios.get("/api/personal/listuser", {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      setUserList(res.data.currentUsers || []);
+      setStatus("ok");
+    } catch (error) {
       console.error(error);
-      setIsFetch(false);
-    });
-  }
+      setStatus("error");
+    }
+  }, [token]);
 
   useEffect(() => {
+    if (!token) return;
     getUserList();
-  }, []);
+  }, [token, getUserList]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-        getUserList();
-      }, MINUTE_MS);
-    return () => clearInterval(interval);
-  }, [])
+  if (!token) {
+    return (
+      <div className="main-wrapper">
+        <div className="main-inner">
+          <NoAuth />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="main-wrapper">
       <div className="main-inner">
-        {!isFetch ? (
-          <p>Loading...</p>
-        ):(
-          <>
-            <UserList userlist={userList} token={token}/>
-          </>
-        )}
+        {status === "loading" && <p>Loading...</p>}
+        {status === "error" && <p className="text-danger">Could not load your profile.</p>}
+        {status === "ok" && <UserList userlist={userList} token={token} />}
       </div>
     </div>
   );

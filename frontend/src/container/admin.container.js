@@ -1,49 +1,52 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import UserList from '../components/adminUserList'
 import CreateUser from '../components/createUser'
+import NoAuth from '../components/noAuth'
 
-export default function AdminPage( {token} ) {
+export default function AdminPage({ token }) {
   const [userList, setUserList] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const MINUTE_MS = 2000; // 2 sec
+  const [isAdmin, setIsAdmin] = useState(null); // null = unknown yet
 
-
-  const getUserList = async () => {
-
-    await axios.get("/api/admin/listuser", {
-      headers: {Authorization: 'Bearer ' + token}
-    })
-    .then((res) => {
-      setUserList(res.data.currentUsers);
+  const getUserList = useCallback(async () => {
+    try {
+      const res = await axios.get("/api/admin/listuser", {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      setUserList(res.data.currentUsers || []);
       setIsAdmin(true);
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error(error);
       setIsAdmin(false);
-    });
-  }
+    }
+  }, [token]);
 
   useEffect(() => {
+    if (!token) return;
     getUserList();
-  }, []);
+  }, [token, getUserList]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-        getUserList();
-      }, MINUTE_MS);
-    return () => clearInterval(interval);
-  }, [])
+  if (!token) {
+    return (
+      <div className="main-wrapper">
+        <div className="main-inner">
+          <NoAuth />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="main-wrapper">
       <div className="main-inner">
-        {!isAdmin ? (
+        {isAdmin === null ? (
+          <p>Loading...</p>
+        ) : !isAdmin ? (
           <p>You are not admin</p>
-        ):(
+        ) : (
           <>
-            <CreateUser token={token}/>
-            <UserList userlist={userList} token={token}/>
+            <CreateUser token={token} onCreated={getUserList} />
+            <UserList userlist={userList} token={token} />
           </>
         )}
       </div>

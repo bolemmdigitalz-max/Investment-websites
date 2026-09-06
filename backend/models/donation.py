@@ -17,7 +17,7 @@ class DonationModel(db.Model):
     group_six = db.Column(db.Integer, nullable=False)
     group_seven = db.Column(db.Integer, nullable=False)
     group_nine = db.Column(db.Integer, nullable=False)
-    group_ten= db.Column(db.Integer, nullable=False)
+    group_ten = db.Column(db.Integer, nullable=False)
     group_eleven = db.Column(db.Integer, nullable=False)
     group_twelve = db.Column(db.Integer, nullable=False)
     group_thirteen = db.Column(db.Integer, nullable=False)
@@ -25,12 +25,18 @@ class DonationModel(db.Model):
     dateUpload = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     @classmethod
+    def _by_account_newest_first(cls, account: str):
+        # ``id`` is used as a tie breaker: two submissions in the same second
+        # share the same ``dateUpload`` timestamp.
+        return cls.query.filter_by(account=account).order_by(cls.dateUpload.desc(), cls.id.desc())
+
+    @classmethod
     def find_by_account(cls, account: str) -> ["DonationModel"]:
-        return cls.query.filter_by(account=account).order_by(DonationModel.dateUpload.desc()).all()
-    
+        return cls._by_account_newest_first(account).all()
+
     @classmethod
     def find_latest_by_account(cls, account: str) -> "DonationModel":
-        return cls.query.filter_by(account=account).order_by(cls.dateUpload.desc()).first()
+        return cls._by_account_newest_first(account).first()
 
     @classmethod
     def find_by_submitID(cls, submitUUID: str) -> "DonationModel":
